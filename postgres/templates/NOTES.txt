@@ -1,0 +1,4 @@
+
+Helm debug dry-run was successful.
+
+Thank you for install Personal Postgres Chart!

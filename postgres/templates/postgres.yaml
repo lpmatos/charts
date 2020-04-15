@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.postgres.name }}
+  labels:
+    app: {{ .Values.postgres.name }}
+spec:
+  serviceName: {{ .Values.postgres.name }}
+  replicas: 1
+  updateStrategy:
+    type: {{ .Values.postgres.updateStrategy.type }}
+    {{- if (eq "Recreate" .Values.postgres.updateStrategy.type) }}
+    rollingUpdate: null
+    {{- end }}
+  selector:
+    matchLabels:
+      app: {{ .Values.postgres.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.postgres.name }}
+    spec:
+      containers:
+      - image: {{ include "postgres.image" . }}
+        name: {{ .Values.postgres.name }}
+        env:
+          {{ include "postgres.envs" . | nindent 10 }}
+          - name: BITNAMI_DEBUG
+            value: {{ ternary "true" "false" .Values.postgres.image.debug | quote }}
+          - name: PGDATA
+            value: {{ .Values.postgres.postgresqlDataDir | quote }}
+          {{- if and .Values.postgres.postgresqlPostgresPassword (not (eq .Values.postgres.postgresqlUsername "postgres")) }}
+          - name: POSTGRES_POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "postgres.secret.name" . }}
+                key: postgresql-postgres-password
+          {{- end }}
+          - name: POSTGRES_USER
+            value: {{ .Values.postgres.postgresqlUsername | quote }}
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "postgres.secret.name" . }}
+                key: postgresql-password
+          {{- if .Values.postgres.postgresqlDatabase }}
+          - name: POSTGRES_DB
+            value: {{ .Values.postgres.postgresqlDatabase | quote }}
+          {{- end }}
+        imagePullPolicy: {{ .Values.postgres.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.postgres.service.port }}
+        {{- if .Values.postgres.livenessProbe.enabled }}
+        livenessProbe:
+          exec:
+            command:
+              - /bin/sh
+              - -c
+              {{- if .Values.postgres.postgresqlDatabase }}
+              - exec pg_isready -U {{ .Values.postgres.postgresqlUsername | quote }} -d {{ .Values.postgres.postgresqlDatabase | quote }} -h 127.0.0.1 -p {{ .Values.postgres.service.port }}
+              {{- else }}
+              - exec pg_isready -U {{ .Values.postgres.postgresqlUsername | quote }} -h 127.0.0.1 -p {{ .Values.postgres.service.port }}
+              {{- end }}
+          initialDelaySeconds: {{ .Values.postgres.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.postgres.livenessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.postgres.livenessProbe.timeoutSeconds }}
+          successThreshold: {{ .Values.postgres.livenessProbe.successThreshold }}
+          failureThreshold: {{ .Values.postgres.livenessProbe.failureThreshold }}
+        {{- end }}
+        {{- if .Values.postgres.readinessProbe.enabled }}
+        readinessProbe:
+          exec:
+            command:
+              - /bin/sh
+              - -c
+              - -e
+              {{- if .Values.postgres.postgresqlDatabase }}
+              - exec pg_isready -U {{ .Values.postgres.postgresqlUsername | quote }} -d {{ .Values.postgres.postgresqlDatabase | quote }} -h 127.0.0.1 -p {{ .Values.postgres.service.port }}
+              {{- else }}
+              - exec pg_isready -U {{ .Values.postgres.postgresqlUsername | quote }} -h 127.0.0.1 -p {{ .Values.postgres.service.port }}
+              {{- end }}
+              {{- include "postgresql.readinessProbeCommand" . | nindent 14 }}
+          initialDelaySeconds: {{ .Values.postgres.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.postgres.readinessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.postgres.readinessProbe.timeoutSeconds }}
+          successThreshold: {{ .Values.postgres.readinessProbe.successThreshold }}
+          failureThreshold: {{ .Values.postgres.readinessProbe.failureThreshold }}
+        {{- end }}  
+        volumeMounts:
+          - name: {{ .Values.postgres.name }}
+            mountPath: /var/lib/postgresql/data
+            subPath: data
+      volumes:
+        - name: {{ .Values.postgres.name }}
+          persistentVolumeClaim:
+            claimName: pvc-vol-{{ .Values.postgres.name }}     
+---

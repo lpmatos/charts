@@ -1,0 +1,83 @@
+# =============================================================================
+# POSTGRES DEFINITION
+# =============================================================================
+
+##
+## Postgres configuration
+##
+## https://github.com/helm/charts/tree/master/stable/postgresql
+##
+postgres:
+  name: "postgres"
+  image:
+    repository: "bitnami/postgresql"
+    tag: "11.7.0-debian-10-r9"
+    pullPolicy: IfNotPresent
+    ## Set to true if you would like to see extra information on logs
+    ## It turns BASH and NAMI debugging in minideb
+    ## ref:  https://github.com/bitnami/minideb-extras/#turn-on-bash-debugging
+    debug: false
+
+  ## PostgreSQL admin password (used when `postgresqlUsername` is not `postgres`)
+  ## ref: https://github.com/bitnami/bitnami-docker-postgresql/blob/master/README.md#creating-a-database-user-on-first-run (see note!)
+  # postgresqlPostgresPassword:
+
+  ## PostgreSQL user (has superuser privileges if username is `postgres`)
+  ## ref: https://github.com/bitnami/bitnami-docker-postgresql/blob/master/README.md#setting-the-root-password-on-first-run
+  postgresqlUsername: postgres
+
+  ## PostgreSQL password
+  ## ref: https://github.com/bitnami/bitnami-docker-postgresql/blob/master/README.md#setting-the-root-password-on-first-run
+  ##
+  ## postgresqlPassword: "Postgres2019!"
+
+  ## Create a database - PostgreSQL Database to create.
+  ## ref: https://github.com/bitnami/bitnami-docker-postgresql/blob/master/README.md#creating-a-database-on-first-run
+  ##
+  ## postgresqlDatabase:
+
+  ## PostgreSQL data dir
+  ## ref: https://github.com/bitnami/bitnami-docker-postgresql/blob/master/README.md
+  ##
+  postgresqlDataDir: /bitnami/postgresql/data/pgdata
+  
+  updateStrategy:
+    type: RollingUpdate
+
+  service:
+    annotations: {}
+    type: ClusterIP
+    port: 5432
+
+  ## Configure extra options for liveness and readiness probes
+  ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes)
+  livenessProbe:
+    enabled: false
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+
+  readinessProbe:
+    enabled: false
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+
+  persistence:
+    ## MySQL data Persistent Volume Storage Class
+    ## If defined, storageClassName: <storageClass>
+    ## If set to "-", storageClassName: "", which disables dynamic provisioning
+    ## If undefined (the default) or set to null, no storageClassName spec is
+    ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+    ##   GKE, AWS & OpenStack)
+    ## In prod we use - storageClass: efs 
+    ##
+    storageClass: efs
+    size: 10Gi
+
+  envs:
+    TZ: "America/Sao_Paulo"
